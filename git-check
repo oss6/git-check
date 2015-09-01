@@ -1,0 +1,91 @@
+#! /usr/bin/env bash
+
+branch_name() {
+	name="$(git symbolic-ref --short HEAD 2>/dev/null)"
+	retcode="$?"
+	if [[ "$retcode" == "0" ]]; then
+    		printf %s "$name"
+  	else
+    		return 1
+  	fi
+}
+
+if [ -d ".git" ]; then
+	BRANCH="$(branch_name)"	
+	STATUS=`git status --porcelain`
+	
+	IFS='%'
+
+	# Get status array
+	STATUS_ARR=()
+	while read -r line; do
+   		STATUS_ARR+=("$line")
+	done <<< "$STATUS"
+
+	# Staged and ready to be committed
+	IADDED=0
+	IDELETED=0
+	IMODIFIED=0
+	IRENAMED=0
+	ICOPIED=0
+	
+	# Unstaged or untracked
+	ADDED=0
+	MODIFIED=0
+	DELETED=0
+	
+	# Conflicted
+	CONFLICT_U=0
+	CONFLICT_T=0
+	CONFLICT_B=0
+	
+	# To push
+	TO_PUSH=`git rev-list origin/$BRANCH..$BRANCH`
+	TO_PUSH_ARR=()
+        while read -r line; do
+                TO_PUSH_ARR+=("$line")
+        done <<< "$TO_PUSH"
+
+	for sline in "${STATUS_ARR[@]}"; do
+       		letter=${sline:0:2}
+		
+		case "$letter" in
+			"A ") ((IADDED++));;
+			"D ") ((IDELETED++));;
+			"R ") ((IRENAMED++));;
+			"M ") ((IMODIFIED++));;
+			"C ") ((ICOPIED++));;
+			"??") ((ADDED++));;
+			" D") ((DELETED++));;
+			" M") ((MODIFIED++));;
+			"DD"|"AA"|"UU") ((CONFLICT_B++));;
+			"AU"|"DU") ((CONFLICT_U++));;
+			"UA"|"UD") ((CONFLICT_T++));;
+			* )
+		esac
+        done
+
+	OSTAT=("istat=($IADDED A 32)" "istat=($IDELETED D 32)" "istat=($IMODIFIED M 32)" "istat=($IRENAMED R 32)" "istat=($ICOPIED C 32)" "istat=($ADDED A 31)" "istat=($MODIFIED M 31)" "istat=($DELETED D 31)" "istat=($CONFLICT_B B 33)" "istat=($CONFLICT_U U 33)" "istat=($CONFLICT_T T 33)")
+
+	if [ ${#TO_PUSH_ARR[@]} -gt 0 -a "$TO_PUSH_ARR" != "" ]; then
+		PROMPT="| git:($BRANCH ${#TO_PUSH_ARR[@]} \\033[0;32m\xe2\x86\x91\\033[0m) "
+	else
+		PROMPT="| git:($BRANCH) "
+	fi
+
+	for elt in "${OSTAT[@]}"; do
+		eval $elt
+		count="${istat[0]}"
+		text="${istat[1]}"
+		colour="${istat[2]}"
+
+		if [ $count -gt 0 ]; then
+                	PROMPT="${PROMPT}${count}\\033[0;${colour}m${text}\\033[0m "
+        	fi
+	done
+
+	echo -e $PROMPT
+	unset IFS
+else
+	echo ""
+fi
