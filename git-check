@@ -1,18 +1,30 @@
 #! /usr/bin/env bash
 
+declare -a get_array_arr
+
+is_repo() {
+	if [[ -d ".git" ]]; then
+		return 0
+	else
+		return 1
+	fi
+}
+
 branch_name() {
 	name="$(git symbolic-ref --short HEAD 2>/dev/null)"
 	retcode="$?"
+
 	if [[ "$retcode" == "0" ]]; then
-    		printf %s "$name"
-  	else
-    		return 1
-  	fi
+		printf %s "$name"
+	else
+		return 1
+	fi
 }
 
 commits_to_push() {
-	to_push=`git rev-list origin/$BRANCH..$BRANCH 2>/dev/null`
+	to_push="$(git rev-list origin/$BRANCH..$BRANCH 2>/dev/null)"
 	retcode="$?"
+
 	if [[ "$retcode" == "0" ]]; then
 		printf %s "$to_push"
 	else
@@ -20,82 +32,90 @@ commits_to_push() {
 	fi
 }
 
-if [ -d ".git" ]; then
-	BRANCH="$(branch_name)"	
-	STATUS=`git status --porcelain`
-	
+get_array() {
 	IFS='%'
 
-	# Get status array
-	STATUS_ARR=()
+	get_array_arr=()
+
+	local str=$1
 	while read -r line; do
-   		STATUS_ARR+=("$line")
-	done <<< "$STATUS"
+		get_array_arr+=("$line")
+	done <<< "$str"
+
+	unset IFS
+}
+
+if is_repo; then
+	branch="$(branch_name)"
+	status="$(git status --porcelain)"
+	to_push="$(commits_to_push)"
+
+	# Get status array
+	get_array "$status"
+	status_arr=$get_array_arr
+
+	# Get commits to push array
+	get_array "$(commits_to_push)"
+	to_push_arr=$get_array_arr
 
 	# Staged and ready to be committed
-	IADDED=0
-	IDELETED=0
-	IMODIFIED=0
-	IRENAMED=0
-	ICOPIED=0
+	iadded=0
+	ideleted=0
+	imodified=0
+	irenamed=0
+	icopied=0
 	
 	# Unstaged or untracked
-	ADDED=0
-	MODIFIED=0
-	DELETED=0
+	added=0
+	modified=0
+	deleted=0
 	
 	# Conflicted
-	CONFLICT_U=0
-	CONFLICT_T=0
-	CONFLICT_B=0
-	
-	# To push
-	TO_PUSH="$(commits_to_push)"
-	TO_PUSH_ARR=()
-        while read -r line; do
-                TO_PUSH_ARR+=("$line")
-        done <<< "$TO_PUSH"
+	conflict_u=0
+	conflict_t=0
+	conflict_b=0
 
-	for sline in "${STATUS_ARR[@]}"; do
-       		letter=${sline:0:2}
+	for sline in "${status_arr[@]}"; do
+		letter=${sline:0:2}
 		
 		case "$letter" in
-			"A ") ((IADDED++));;
-			"D ") ((IDELETED++));;
-			"R ") ((IRENAMED++));;
-			"M ") ((IMODIFIED++));;
-			"C ") ((ICOPIED++));;
-			"??") ((ADDED++));;
-			" D") ((DELETED++));;
-			" M") ((MODIFIED++));;
-			"DD"|"AA"|"UU") ((CONFLICT_B++));;
-			"AU"|"DU") ((CONFLICT_U++));;
-			"UA"|"UD") ((CONFLICT_T++));;
+			"A ") ((iadded++));;
+			"D ") ((ideleted++));;
+			"R ") ((irenamed++));;
+			"M ") ((imodified++));;
+			"C ") ((icopied++));;
+			"??") ((added++));;
+			" D") ((deleted++));;
+			" M") ((modified++));;
+			"DD"|"AA"|"UU") ((conflict_b++));;
+			"AU"|"DU") ((conflict_u++));;
+			"UA"|"UD") ((conflict_t++));;
 			* )
 		esac
-        done
+	done
 
-	OSTAT=("istat=($IADDED A 32)" "istat=($IDELETED D 32)" "istat=($IMODIFIED M 32)" "istat=($IRENAMED R 32)" "istat=($ICOPIED C 32)" "istat=($ADDED A 31)" "istat=($MODIFIED M 31)" "istat=($DELETED D 31)" "istat=($CONFLICT_B B 33)" "istat=($CONFLICT_U U 33)" "istat=($CONFLICT_T T 33)")
+	ostat=("istat=($iadded A 32)" "istat=($ideleted D 32)" "istat=($imodified M 32)" "istat=($irenamed R 32)" "istat=($icopied C 32)" \
+			"istat=($added A 31)" "istat=($modified M 31)" "istat=($deleted D 31)" \
+			"istat=($conflict_b B 33)" "istat=($conflict_u U 33)" "istat=($conflict_t T 33)")
 
-	if [ ${#TO_PUSH_ARR[@]} -gt 0 -a "$TO_PUSH_ARR" != "" ]; then
-		PROMPT="| git:($BRANCH ${#TO_PUSH_ARR[@]} \\033[0;32m\xe2\x86\x91\\033[0m) "
+	if [ ${#to_push_arr[@]} -gt 0 -a "$to_push_arr" != "" ]; then
+		prompt="| git:($branch ${#to_push_arr[@]} \\033[0;32m\xe2\x86\x91\\033[0m) "
 	else
-		PROMPT="| git:($BRANCH) "
+		prompt="| git:($branch) "
 	fi
 
-	for elt in "${OSTAT[@]}"; do
+	for elt in "${ostat[@]}"; do
 		eval $elt
 		count="${istat[0]}"
 		text="${istat[1]}"
 		colour="${istat[2]}"
 
 		if [ $count -gt 0 ]; then
-                	PROMPT="${PROMPT}${count}\\033[0;${colour}m${text}\\033[0m "
-        	fi
+			prompt="${prompt}${count}\\033[0;${colour}m${text}\\033[0m \n"
+		fi
 	done
 
-	echo -e $PROMPT
-	unset IFS
+	echo -e $prompt
 else
 	echo ""
 fi
