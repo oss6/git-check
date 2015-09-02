@@ -33,26 +33,26 @@ commits_to_push() {
 }
 
 get_array() {
-	IFS='%'
-
 	get_array_arr=()
 
 	local str=$1
 	while read -r line; do
 		get_array_arr+=("$line")
 	done <<< "$str"
-
-	unset IFS
 }
 
 if is_repo; then
+	IFS='%'
+
 	branch="$(branch_name)"
 	status="$(git status --porcelain)"
 	to_push="$(commits_to_push)"
 
 	# Get status array
 	get_array "$status"
-	status_arr=$get_array_arr
+	status_arr=${get_array_arr[@]}
+
+	#echo "${status_arr[@]}"
 
 	# Get commits to push array
 	get_array "$(commits_to_push)"
@@ -111,11 +111,13 @@ if is_repo; then
 		colour="${istat[2]}"
 
 		if [ $count -gt 0 ]; then
-			prompt="${prompt}${count}\\033[0;${colour}m${text}\\033[0m \n"
+			prompt="${prompt}${count}\\033[0;${colour}m${text}\\033[0m "
 		fi
 	done
 
 	echo -e $prompt
+
+	unset IFS
 else
 	echo ""
 fi
