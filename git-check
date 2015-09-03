@@ -42,11 +42,24 @@ get_array() {
 	done <<< "$str"
 }
 
-if [[ -z $@ ]]; then
-	echo "prova"
+# Output docs
+if  [[ $# -eq 0 ]]; then
+	echo "git-check  -  provides basic git repo information in your prompt"
+	echo ""
+	echo "usage:"
+	echo "  git-check [--bash]"
+	echo ""
+	echo "  --bash   # Output prompt using Bash style color characters"
+	echo ""
+	echo "Example:"
+	echo "  export PS1=\"\$PS1\\\$(git-check --bash)\""
+	echo ""
+	echo "  This will show your current directory and the full git-check prompt."
+	echo ""
 	exit
 fi
 
+# Output prompt
 if is_repo && [[ "$1" == "--bash" ]]; then
 	IFS='%'
 
