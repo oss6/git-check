@@ -22,7 +22,8 @@ branch_name() {
 }
 
 commits_to_push() {
-	to_push="$(git rev-list origin/$BRANCH..$BRANCH 2>/dev/null)"
+	branch=$1
+	to_push="$(git rev-list origin/$branch..$branch 2>/dev/null)"
 	retcode="$?"
 
 	if [[ "$retcode" == "0" ]]; then
@@ -46,14 +47,14 @@ if is_repo; then
 
 	branch="$(branch_name)"
 	status="$(git status --porcelain)"
-	to_push="$(commits_to_push)"
+	to_push="$(commits_to_push $branch)"
 
 	# Get status array
 	get_array "$status"
 	status_arr=("${get_array_arr[@]}")
 
 	# Get commits to push array
-	get_array "$(commits_to_push)"
+	get_array "$to_push"
 	to_push_arr=("${get_array_arr[@]}")
 
 	# Staged and ready to be committed
