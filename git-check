@@ -50,13 +50,11 @@ if is_repo; then
 
 	# Get status array
 	get_array "$status"
-	status_arr=${get_array_arr[@]}
-
-	#echo "${status_arr[@]}"
+	status_arr=("${get_array_arr[@]}")
 
 	# Get commits to push array
 	get_array "$(commits_to_push)"
-	to_push_arr=$get_array_arr
+	to_push_arr=("${get_array_arr[@]}")
 
 	# Staged and ready to be committed
 	iadded=0
