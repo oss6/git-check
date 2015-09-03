@@ -3,7 +3,7 @@
 declare -a get_array_arr
 
 is_repo() {
-	if [[ -d ".git" ]]; then
+	if [[ -d .git ]]; then
 		return 0
 	else
 		return 1
@@ -42,7 +42,12 @@ get_array() {
 	done <<< "$str"
 }
 
-if is_repo; then
+if [[ -z $@ ]]; then
+	echo "prova"
+	exit
+fi
+
+if is_repo && [[ "$1" == "--bash" ]]; then
 	IFS='%'
 
 	branch="$(branch_name)"
